@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flybot Game Fullscreen</title>
+<style>
+    body { margin: 0; background: #000; color: white; overflow: hidden; }
+    canvas { display: block; background: skyblue; }
+</style>
+</head>
+<body>
+
+<canvas id="board"></canvas>
+
+<script>
+let board, context;
+let boardWidth, boardHeight;
+
+// Player (flybot)
+let flybot = { x: 100, y: 240, width: 50, height: 50 };
+let flybotImg = new Image();
+flybotImg.src = "flybot.gif";
+
+// Fly
+let fly = { x: 0, y: 0, width: 40, height: 40 };
+let flyImg = new Image();
+flyImg.src = "fly.gif";
+
+// Rock
+let rock = { x: 0, y: 0, width: 40, height: 40 };
+let rockImg = new Image();
+rockImg.src = "rock.gif";
+
+// Cloud
+let cloud = { x: 0, y: 0, width: 50, height: 50 };
+let cloudImg = new Image();
+cloudImg.src = "cloud.gif";
+
+// Game state
+let score = 0;
+let health = 100;
+let gameOver = false;
+
+// Movement keys
+let keys = {};
+
+// Listen for keys
+document.addEventListener("keydown", (e) => { keys[e.code] = true; });
+document.addEventListener("keyup", (e) => { keys[e.code] = false; });
+
+// Resize handler
+function resizeBoard() {
+    boardWidth = window.innerWidth;
+    boardHeight = window.innerHeight;
+    board.width = boardWidth;
+    board.height = boardHeight;
+}
+window.addEventListener("resize", resizeBoard);
+
+// Start game
+window.onload = function() {
+    board = document.getElementById("board");
+    context = board.getContext("2d");
+    resizeBoard();
+
+    // Set starting positions
+    fly.x = boardWidth;
+    fly.y = Math.random() * (boardHeight - 200);
+
+    rock.x = boardWidth + 300;
+    rock.y = Math.random() * (boardHeight - 200);
+
+    cloud.x = boardWidth / 2;
+    cloud.y = 40;
+
+    requestAnimationFrame(update);
+};
+
+function update() {
+    if (gameOver) return;
+    requestAnimationFrame(update);
+
+    // Clear board
+    context.clearRect(0, 0, boardWidth, boardHeight);
+
+    // Background (sky + ground)
+    context.fillStyle = "skyblue";
+    context.fillRect(0, 0, boardWidth, boardHeight);
+    context.fillStyle = "green";
+    context.fillRect(0, boardHeight - 100, boardWidth, 100);
+
+    // Move player
+    if (keys["ArrowUp"]) flybot.y -= 5;
+    if (keys["ArrowDown"]) flybot.y += 5;
+    if (keys["ArrowLeft"]) flybot.x -= 5;
+    if (keys["ArrowRight"]) flybot.x += 5;
+
+    // Keep player inside bounds
+    flybot.x = Math.max(0, Math.min(boardWidth - flybot.width, flybot.x));
+    flybot.y = Math.max(0, Math.min(boardHeight - 100 - flybot.height, flybot.y));
+
+    // Move cloud slowly
+    cloud.x -= 1;
+    if (cloud.x + cloud.width < 0) {
+        cloud.x = boardWidth;
+        cloud.y = Math.random() * (boardHeight / 3);
+    }
+
+    // Draw cloud
+    context.drawImage(cloudImg, cloud.x, cloud.y, cloud.width, cloud.height);
+
+    // Draw flybot
+    context.drawImage(flybotImg, flybot.x, flybot.y, flybot.width, flybot.height);
+
+    // Draw fly
+    context.drawImage(flyImg, fly.x, fly.y, fly.width, fly.height);
+
+    // Draw rock
+    context.drawImage(rockImg, rock.x, rock.y, rock.width, rock.height);
+
+    // Move fly & rock
+    fly.x -= 3;
+    rock.x -= 5;
+
+    // Reset if off screen
+    if (fly.x + fly.width < 0) resetFly();
+    if (rock.x + rock.width < 0) resetRock();
+
+    // Collisions
+    if (detectCollision(flybot, fly)) {
+        score++;
+        resetFly();
+    }
+    if (detectCollision(flybot, rock)) {
+        health -= 5;
+        resetRock();
+    }
+
+    // UI text
+    context.fillStyle = "black";
+    context.font = "20px Arial";
+    context.fillText(`Health: ${health}`, boardWidth - 150, 30);
+    context.fillText(`Score: ${score}`, 20, 30);
+    context.fillText("Controls: Arrow keys to move", 20, boardHeight - 50);
+    context.fillText("Eat 35 Flies To Win", 20, boardHeight - 30);
+
+    // Endgame conditions
+    if (health <= 0) {
+        endGame("Game Over!", "green", `Your Score Was: ${score}`);
+    }
+    if (score >= 35) {
+        endGame("You Win!", "blue", `Your Health Was: ${health}`);
+        if (health <= 15) {
+            context.fillText("Good Try But Try to Get 100", boardWidth / 2 - 100, boardHeight - 100);
+        }
+        if (health === 100) {
+            context.fillText("Perfect Sigma Brainrot", boardWidth / 2 - 100, boardHeight - 150);
+        }
+    }
+}
+
+function resetFly() {
+    fly.x = boardWidth;
+    fly.y = Math.random() * (boardHeight - 200);
+}
+
+function resetRock() {
+    rock.x = boardWidth;
+    rock.y = Math.random() * (boardHeight - 200);
+}
+
+function detectCollision(a, b) {
+    return a.x < b.x + b.width &&
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
+}
+
+function endGame(message, color, subMessage = "") {
+    gameOver = true;
+    context.fillStyle = "black";
+    context.fillRect(0, 0, boardWidth, boardHeight);
+    context.fillStyle = color;
+    context.font = "40px Arial";
+    context.fillText(message, boardWidth / 2 - 100, boardHeight / 2);
+    if (subMessage) {
+        context.font = "20px Arial";
+        context.fillText(subMessage, boardWidth / 2 - 100, boardHeight / 2 + 50);
+    }
+}
+</script>
+</body>
+</html>
